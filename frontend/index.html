@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Metadata Extractor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📸 Image Metadata Extractor</h1>
+        
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">
+                <p>Click to upload or drag and drop</p>
+                <p style="font-size: 12px; color: #999; margin-top: 10px;">PNG, JPG, GIF up to 10MB</p>
+            </div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <button id="uploadBtn" disabled>Upload Image</button>
+
+        <div class="error" id="errorMsg"></div>
+        <div class="success" id="successMsg"></div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Processing your image...</p>
+        </div>
+
+        <div id="preview"></div>
+
+        <div class="result" id="result">
+            <div class="metadata" id="metadata"></div>
+            <button id="clearBtn" style="background: #999;">Upload Another Image</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
