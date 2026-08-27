@@ -80,28 +80,39 @@ uploadBtn.addEventListener('click', async () => {
     clearMessages();
 
     try {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('filename', selectedFile.name);
-
+        
         const response = await fetch(UPLOAD_ENDPOINT, {
             method: 'POST',
-            body: formData,
-        });
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+             filename: selectedFile.name,
+            contentType: selectedFile.type 
+      })
+    });
 
         if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Erreur lors de la validation API');
         }
 
-        const data = await response.json();
-        
-        if (data.error) {
-            showError(data.error);
+        const { uploadUrl , imageId} = await response.json();
+        const s3Response = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': selectedFile.type 
+            },
+            body: selectedFile 
+        });
+
+        if (!s3Response.ok) {
+            throw new Error(" Error uploading to S3: ");
         } else {
             showSuccess('Image uploaded successfully! ' );
             
             // Poll for metadata 
-            pollMetadata(data.Id );
+            pollMetadata(imageId);
         }
     } catch (error) {
         showError('Upload failed: ' + error.message);
@@ -122,11 +133,16 @@ function pollMetadata(Id) {
         try {
             const response = await fetch(`${RESULTS_ENDPOINT}/${Id}`);
             
-            if (response.ok) {
+            if (response.status === 200) {
                 const data = await response.json();
                 clearInterval(interval);
                 displayMetadata(data);
-            } else if (attempts >= maxAttempts) {
+            } 
+            else if (response.status === 202) {
+                // Metadata is still being processed, continue polling 
+
+            }
+            else if (attempts >= maxAttempts) {
                 clearInterval(interval);
                 showError('Metadata processing timed out. Please try again later.');
             }
@@ -150,10 +166,6 @@ function displayMetadata(data) {
         <div class="metadata-item">
             <span class="metadata-label">Image ID:</span>
             <span class="metadata-value">${data.Id || 'N/A'}</span>
-        </div>
-        <div class="metadata-item">
-            <span class="metadata-label">Filename:</span>
-            <span class="metadata-value">${data.filename || 'N/A'}</span>
         </div>
         <div class="metadata-item">
             <span class="metadata-label">Size:</span>

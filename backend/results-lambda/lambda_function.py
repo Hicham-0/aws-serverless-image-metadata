@@ -20,7 +20,7 @@ table = dynamodb.Table(TABLE_NAME)
 
 def lambda_handler(event,context):
     #/result/{id}
-    image_id=event.get("pathParameters", {}).get("id")
+    image_id= ( event.get("pathParameters") or {} ).get("id")
      
      
     #fetch the item for dynamodb 
@@ -37,7 +37,6 @@ def lambda_handler(event,context):
     
     data={
         "Id":item["Id"],
-        "filename": item.get("filename"),
         "extension": item.get("extension"),
         "size": item.get("size"),
         "contentType": item.get("contentType"),
@@ -47,15 +46,29 @@ def lambda_handler(event,context):
         "mode": item.get("mode"),
         "format": item.get("format"),
         "s3Key": item.get("s3Key"),
-        "exif": item.get("EXIF", {})   
+        "exif": item.get("EXIF", {}) ,
+        "status": item.get("status") 
     }
+
+    if (data["status"] == "PENDING") :
+
+        return {
+
+        "statusCode":202,
+        "headers":{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"}
+        }
     
-    
-    return{
+    if ( data["status"] == "COMPLETE"): 
+
+        return {
         
         "statusCode":200,
         "headers":{"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
         "body": json.dumps(data, default=decimal_to_float)
+        }
+    
+    return {
+        "statusCode": 500,
+        "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+        "body": json.dumps({"error": "Unexpected item status"})
     }
-    
-    

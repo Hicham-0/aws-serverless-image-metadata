@@ -1,62 +1,67 @@
 import json 
-import base64
 import uuid
 import boto3
-import requests_toolbelt.multipart.decoder as decoder
 import os
-UPLOAD_BUCKET = os.environ["UPLOAD_BUCKET"]
+
+
 s3 = boto3.client("s3")
+UPLOAD_BUCKET = os.environ["UPLOAD_BUCKET"]
+ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp','image/jpg']
+dynamodb = boto3.resource("dynamodb")
+table_name = os.environ["DDB_TABLE"]
+table = dynamodb.Table(table_name)
 
 def lambda_handler(event, context):
+    body = json.loads(event.get('body', '{}'))
+    filename = body.get('filename')
+    content_type = body.get('contentType')  
 
-    body = base64.b64decode(event['body'])
-    content_type = event['headers'].get("Content-Type") or event['headers'].get("content-type")
+    
 
-    MultiParts = decoder.MultipartDecoder(body, content_type)
-    file = None
-    file_name = None
-    file_content_type = None
+    if not content_type or not filename : 
+        return response(400,{'error':'missing metadata'})
 
-    for part in MultiParts.parts:
-        cd = part.headers.get(b"Content-Disposition").decode()
+    content_type = content_type.lower()
+    if content_type not in ALLOWED_TYPES:
+        return response(400,{'error': 'file type not allowed'})
 
-        if 'filename=' in cd:
-            file_name = cd.split('filename=')[1].strip('"')
-            file = part.content
-            file_content_type = part.headers.get(b"Content-Type", b"application/octet-stream").decode()
-
-    if file is None or file_name is None:
-        return {
-            'statusCode': 400,
-            'headers': {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-            'body': json.dumps({'message': 'No file found in the request'})
-        }
-
-    id = str(uuid.uuid4())
-    object_key = f'uploads/{id}'
+    image_id = str(uuid.uuid4())
+    file_extension = filename.split(".")[-1]
+    object_key = f'uploads/{image_id}.{file_extension}'
 
     try:
-        s3.put_object(
-            Bucket=UPLOAD_BUCKET,
-            Key=object_key,
-            Body=file,
-            ContentType=file_content_type,
-            Metadata={"filename": file_name}
+        presigned_url = s3.generate_presigned_url(
+            ClientMethod='put_object',
+            Params={
+                'Bucket': UPLOAD_BUCKET,
+                'Key': object_key,
+                'ContentType': content_type
+            },
+            ExpiresIn=300 # 5 minutes
         )
 
-        # Return Id (capitalized) to match DynamoDB / other lambdas and include CORS
-        return {
-            'statusCode': 200,
-            'headers': {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-            'body': json.dumps({
-                "Id": id,
-                "message": "File uploaded successfully"
-            })
-        }
+        item={
+            "Id": image_id ,
+            "status" : "PENDING"
+            }
+        table.put_item(Item=item)
+
+        return response(200,{'uploadUrl': presigned_url,'imageId': image_id})
 
     except Exception as e:
-        return {
-            'statusCode': 500,
-            'headers': {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-            'body': json.dumps({'message': 'Error uploading file', 'error': str(e)})
-        }
+        print(f"lambda error : {str(e)}")
+
+        return response(500,{'error': 'internal server error.'})
+
+
+    
+def response(status_code, body_dict):
+    """standarized responses """
+    return {
+        'statusCode': status_code,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*' # add a domain later !!! yarbi mansach 
+        },
+        'body': json.dumps(body_dict)
+    }
