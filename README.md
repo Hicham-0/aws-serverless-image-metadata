@@ -131,7 +131,7 @@ Each Lambda has specific Python requirements. In this repo, **pre‑built `.zip`
 
 ## 📸 INFRA OVERVIEW
 
-![Infrastructure Diagram](Infrastructure Diagram.png)
+![Infrastructure Diagram](Infrastructure_Diagram.png)
 
 ---
 
