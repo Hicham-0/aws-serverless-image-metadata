@@ -1,0 +1,27 @@
+# Terraform (additions)
+*.tfplan
+tfplan
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Python / Lambda
+__pycache__/
+*.pyc
+.venv/
+venv/
+build/
+*.zip
+
+# Secrets and local env
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
